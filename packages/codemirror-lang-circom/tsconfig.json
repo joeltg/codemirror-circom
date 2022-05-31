@@ -1,0 +1,11 @@
+{
+	"include": ["src"],
+	"compilerOptions": {
+		"strict": true,
+		"outDir": "lib",
+		"declaration": true,
+		"module": "es2020",
+		"target": "es2020",
+		"moduleResolution": "node"
+	}
+}

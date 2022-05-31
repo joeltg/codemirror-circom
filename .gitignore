@@ -1,0 +1,4 @@
+node_modules/
+packages/codemirror-lang-circom/lib/
+packages/circom-dot-party/dist/
+packages/lezer-circom/index.js

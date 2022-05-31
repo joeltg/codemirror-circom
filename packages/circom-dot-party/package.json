@@ -1,0 +1,37 @@
+{
+	"private": true,
+	"name": "circom.party",
+	"version": "0.0.0",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"dev": "esbuild src/index.tsx --bundle --outfile=dist/index.js --watch",
+		"build": "esbuild src/index.tsx --bundle --minify --outfile=dist/index.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nDimensional/circom.party.git"
+	},
+	"author": "Joel Gustafson",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/nDimensional/circom.party/issues"
+	},
+	"homepage": "https://github.com/nDimensional/circom.party#readme",
+	"devDependencies": {
+		"esbuild": "^0.14.2"
+	},
+	"dependencies": {
+		"@codemirror/basic-setup": "^0.20.0",
+		"@codemirror/commands": "^0.20.0",
+		"@codemirror/language": "^0.20.2",
+		"@codemirror/state": "^0.20.0",
+		"@codemirror/text": "^0.19.5",
+		"@codemirror/view": "^0.20.7",
+		"@lezer/common": "^0.16.0",
+		"@types/react": "^18.0.9",
+		"@types/react-dom": "^18.0.5",
+		"react": "^18.1.0",
+		"react-dom": "^18.1.0"
+	}
+}

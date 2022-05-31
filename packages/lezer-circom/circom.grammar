@@ -1,0 +1,290 @@
+// Some general notes:
+
+// The structure here is just split up into "statements" and "blocks",
+// there's no awareness of which kinds of statements are valid in which
+// contexts. Not allowing pragma inside templates or signals inside
+// functions etc. is something we could add with a little more effort,
+// but for now it's any statement anywhere.
+
+// In circom, templates/components and variables/functions mirror each other,
+// but we're not actually able to syntactically distinguish them in all cases.
+// For example "foo[3] = bar()" might be assigning a component slot with a
+// template call, or a variable slot with a function call. This means we can't
+// do very much type-checking inside the parser: we just have one Assignment
+// statement that takes a NumericExpression, and statements that are actually
+// template calls assigned to components will parse as Assignment statements
+// where the NumericExpression is a Call (used for both template and function calls).
+// So it'll be on the linter to look out for other kinds of numeric expressions
+// assigned to component variables (like "component foo; foo = 4 + 2;") which will
+// parse successfully into (Assignment (Addition Number Number))
+
+// (If we *really* wanted to distinguish them inside the parser I think it is
+// actually possible to with a "context tracker" but I haven't used them before
+// and it seems complicated https://lezer.codemirror.net/docs/ref/#lr.ContextTracker)
+
+@external propSource circomHighlighting from "./highlight.js"
+
+@tokens {
+  Number { std.digit+ }
+  CompilerVersion { Number "." Number "." Number }
+
+  OpenBrace[closedBy="CloseBrace"] { "{" }
+  CloseBrace[openedBy="OpenBrace"] { "}" }
+  OpenBracket[closedBy="CloseBracket"] { "[" }
+  CloseBracket[openedBy="OpenBracket"] { "]" }
+  OpenParen[closedBy="CloseParen"] { "(" }
+  CloseParen[openedBy="OpenParen"] { ")" }
+
+  space { $[ \t\n]+ }
+  LineComment { "//" ![\n]* }
+  BlockComment { "/*" blockCommentRest }
+  blockCommentRest { ![*] blockCommentRest | "*" blockCommentAfterStar }
+  blockCommentAfterStar { "/" | "*" blockCommentAfterStar | ![/*] blockCommentRest }
+
+  divide { "/" }
+  divideAssign { "/=" }
+  @precedence { BlockComment, LineComment, divideAssign, divide }
+
+  Identifier { (std.asciiLetter | "_") (std.asciiLetter | std.digit | "$" | "_")* }
+
+  // These are the JSON escaping rules, idk what the circom compiler expects
+  char { $[\u{20}\u{21}\u{23}-\u{5b}\u{5d}-\u{10ffff}] | "\\" esc }
+  esc  { $["\\\/bfnrt] | "u" hexDig hexDig hexDig hexDig }
+  hexDig { $[0-9A-Fa-f] }
+  String { '"' char* '"' }
+}
+
+@precedence {
+  L1 @left,
+  L2 @left,
+  L3 @left,
+  L4 @left,
+  L5 @left,
+  L6 @left,
+  L7 @left,
+  L8 @left,
+  L9 @left
+}
+
+@top Circuit { body }
+
+@skip { space | LineComment | BlockComment }
+
+kw<word> { @specialize[@name={word}]<Identifier, word> }
+list<element> { (element ("," element)*)? }
+
+ArraySize { OpenBracket topLevelNumericExpression CloseBracket }
+ArrayIndex { OpenBracket topLevelNumericExpression CloseBracket }
+ParameterList { OpenParen Parameters CloseParen }
+Parameters { list<Identifier> }
+ParameterValueList { OpenParen ParameterValues CloseParen }
+ParameterValues { list<topLevelNumericExpression> }
+
+Array<element> { OpenBracket ArrayElements<element> CloseBracket }
+ArrayElements<element> { list<element> }
+nestedArray<element> { element | Array<nestedArray<element>> }
+
+body { (statement ";" | block)* }
+
+statement[@isGroup="Statement"] {
+    Pragma
+  | Include
+  | SignalDeclaration
+  | VariableDeclaration
+  | ComponentDeclaration
+  | MainComponentDeclaration
+  | Assignment
+  | arithmeticAssignment
+  | bitwiseAssignment
+  | AssignSignalRight
+  | AssignSignalLeft
+  | AssignConstraintSignalRight
+  | AssignConstraintSignalLeft
+  | ConstrainSignal
+  | Assert
+  | Log
+  | Return
+}
+
+Pragma { kw<"pragma"> kw<"circom"> CompilerVersion }
+Include { kw<"include"> String }
+SignalDeclaration { kw<"signal"> (kw<"input"> | kw<"output">)? Identifier ArraySize* ~reference }
+VariableDeclaration { kw<"var"> Identifier ArraySize* ("=" nestedArray<topLevelNumericExpression>)? }
+ComponentDeclaration { kw<"component"> Identifier (ArraySize* | "=" Call) }
+
+MainComponentDeclaration { kw<"component"> kw<"main"> PublicSignalsList? "=" Call }
+PublicSignalsList { OpenBrace kw<"public"> OpenBracket list<Identifier> CloseBracket CloseBrace }
+
+// Assignment could either be a component assignment or a variable assignment,
+// there's no way to syntactically distinguish between them.
+Assignment { Identifier ArrayIndex* "=" nestedArray<topLevelNumericExpression> }
+
+AssignSignalRight { topLevelNumericExpression "-->" Value }
+AssignSignalLeft { Value "<--" topLevelNumericExpression }
+AssignConstraintSignalRight { topLevelNumericExpression "==>" Value }
+AssignConstraintSignalLeft { Value "<==" topLevelNumericExpression }
+ConstrainSignal { topLevelNumericExpression "===" topLevelNumericExpression }
+
+Assert { kw<"assert"> OpenParen booleanExpression CloseParen }
+
+// the docs say conditionals aren't allowed here
+Log { kw<"log"> OpenParen (numericExpression | booleanExpression) CloseParen }
+
+Return { kw<"return"> numericExpression }
+
+block[@isGroup="Block"] {
+    FunctionDeclaration
+  | TemplateDeclaration
+  | If
+  | ForLoop
+  | WhileLoop
+}
+
+FunctionDeclaration { kw<"function"> Identifier ParameterList OpenBrace FunctionBody CloseBrace }
+FunctionBody { body }
+
+TemplateDeclaration { kw<"template"> kw<"parallel">? Identifier ParameterList OpenBrace TemplateBody CloseBrace }
+TemplateBody { body }
+
+controlFlowBody<name> {
+    statementBody[@name={name}] { statement ";" }
+  | OpenBrace blockBody[@name={name}] { body } CloseBrace
+}
+
+If { kw<"if"> OpenParen IfCondition CloseParen ifBody (kw<"else"> elseBody )? }
+IfCondition { booleanExpression }
+ifBody { controlFlowBody<"IfBody"> }
+elseBody { controlFlowBody<"ElseBody"> }
+
+ForLoop { kw<"for"> OpenParen ForLoopInitialization ";" ForLoopCondition ";" ForLoopStepCode CloseParen forLoopBody }
+ForLoopInitialization { statement }
+ForLoopCondition { booleanExpression }
+ForLoopStepCode { statement }
+forLoopBody { controlFlowBody<"ForLoopBody"> }
+
+WhileLoop { kw<"while"> OpenParen WhileLoopCondition CloseParen whileLoopBody }
+WhileLoopCondition { booleanExpression }
+whileLoopBody { controlFlowBody<"WhileLoopBody"> }
+
+booleanExpression[@isGroup="BooleanExpression"] {
+    BooleanExpressionGroup
+  | BooleanAnd
+  | BooleanOr
+  | BooleanNegation
+  | LT
+  | LTE
+  | GT
+  | GTE
+  | EQ
+  | NEQ
+}
+
+BooleanExpressionGroup { OpenParen booleanExpression CloseParen }
+BooleanAnd { booleanExpression !L8 "&&" booleanExpression }
+BooleanOr { booleanExpression !L9 "||" booleanExpression }
+BooleanNegation { "!" booleanExpression }
+
+LT { numericExpression "<" numericExpression }
+LTE { numericExpression "<=" numericExpression }
+GT { numericExpression ">" numericExpression }
+GTE { numericExpression ">=" numericExpression }
+EQ { numericExpression "==" numericExpression }
+NEQ { numericExpression "!=" numericExpression }
+
+topLevelNumericExpression[@isGroup="NumericExpression"] { Conditional | numericExpression }
+
+Conditional { Condition "?" TrueValue ":" FalseValue }
+Condition { booleanExpression }
+TrueValue { numericExpression }
+FalseValue { numericExpression } 
+
+numericExpression {
+    NumericExpressionGroup
+  | arithmeticOperation
+  | bitwiseOperation
+  | Call
+  | Value
+  | Number
+}
+
+NumericExpressionGroup { OpenParen numericExpression CloseParen }
+
+// Call could either be a template or function call - since components can be initialized
+// and then assigned separately, there's no way to syntactically distinguish them.
+Call { Identifier ParameterValueList }
+
+// Value could either be a variable, local signal, or component signal
+Value { Identifier Signal? ArrayIndex* ~reference }
+Signal { "." Identifier }
+
+arithmeticOperation[@isGroup="ArithmeticOperation"] {
+    Addition
+  | Subtraction
+  | Multiplication
+  | Exponentiation
+  | Division
+  | Quotient
+  | Remainder
+}
+
+Addition { numericExpression !L3 "+" numericExpression }
+Subtraction { numericExpression !L3 "-" numericExpression }
+Multiplication { numericExpression !L2 "*" numericExpression }
+Exponentiation { numericExpression !L1 "**" numericExpression }
+Division { numericExpression !L2 divide numericExpression }
+Quotient { numericExpression !L2 "\\" numericExpression }
+Remainder { numericExpression !L2 "\%" numericExpression }
+
+arithmeticAssignment[@isGroup="ArithmeticAssignment"] {
+    AdditionAssignment
+  | SubtractionAssignment
+  | MultiplicationAssignment
+  | ExponentiationAssignment
+  | DivisionAssignment
+  | QuotientAssignment
+  | RemainderAssignment
+  | Increment
+  | Decrement
+}
+
+AdditionAssignment { Identifier "+=" topLevelNumericExpression }
+SubtractionAssignment { Identifier "-=" topLevelNumericExpression }
+MultiplicationAssignment { Identifier "*=" topLevelNumericExpression }
+ExponentiationAssignment { Identifier "**=" topLevelNumericExpression }
+DivisionAssignment { Identifier divideAssign topLevelNumericExpression }
+QuotientAssignment { Identifier "\\=" topLevelNumericExpression }
+RemainderAssignment { Identifier "\%=" topLevelNumericExpression }
+Increment { Identifier "++" }
+Decrement { Identifier "--" }
+
+bitwiseOperation[@isGroup="BitwiseOperation"] {
+    BitwiseAnd
+  | BitwiseOr
+  | BitwiseComplement
+  | ExclusiveOr
+  | RightShift
+  | LeftShift
+}
+
+BitwiseAnd { numericExpression !L5 "&" numericExpression }
+BitwiseOr { numericExpression !L7 "|" numericExpression }
+BitwiseComplement { "~" numericExpression }
+ExclusiveOr { numericExpression !L6 "^" numericExpression }
+RightShift { numericExpression !L4 ">>" numericExpression }
+LeftShift { numericExpression !L4 "<<" numericExpression }
+
+bitwiseAssignment[@isGroup="BitwiseAssignment"] {
+    BitwiseAndAssignment
+  | BitwiseOrAssignment
+  | BitwiseComplementAssignment
+  | ExclusiveOrAssignment
+  | RightShiftAssignment
+  | LeftShiftAssignment
+}
+
+BitwiseAndAssignment { Identifier "&=" topLevelNumericExpression }
+BitwiseOrAssignment { Identifier "|=" topLevelNumericExpression }
+BitwiseComplementAssignment { "~=" Identifier }
+ExclusiveOrAssignment { Identifier "^=" topLevelNumericExpression }
+RightShiftAssignment { Identifier ">>=" topLevelNumericExpression }
+LeftShiftAssignment { Identifier "<<=" topLevelNumericExpression }

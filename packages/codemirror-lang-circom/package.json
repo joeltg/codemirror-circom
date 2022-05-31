@@ -1,0 +1,39 @@
+{
+	"name": "codemirror-lang-circom",
+	"version": "0.0.6",
+	"description": "A Codemirror language extension for circom",
+	"type": "module",
+	"main": "lib/index.js",
+	"types": "lib/index.d.ts",
+	"files": [
+		"lib"
+	],
+	"scripts": {
+		"build": "tsc",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/joeltg/codemirror-lang-circom.git"
+	},
+	"keywords": [
+		"codemirror",
+		"circom"
+	],
+	"author": "Joel Gustafson",
+	"license": "GPLv3",
+	"bugs": {
+		"url": "https://github.com/joeltg/codemirror-lang-circom/issues"
+	},
+	"homepage": "https://github.com/joeltg/codemirror-lang-circom#readme",
+	"dependencies": {
+		"@codemirror/language": "^0.20.2",
+		"@codemirror/lint": "^0.20.3",
+		"@codemirror/view": "^0.20.7",
+		"@lezer/common": "^0.16.0",
+		"lezer-circom": "0.0.6"
+	},
+	"devDependencies": {
+		"typescript": "^4.5.2"
+	}
+}
