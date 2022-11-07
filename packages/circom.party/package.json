@@ -19,18 +19,20 @@
 	},
 	"homepage": "https://github.com/nDimensional/circom.party#readme",
 	"devDependencies": {
-		"esbuild": "^0.14.2"
+		"esbuild": "^0.15.13"
 	},
 	"dependencies": {
-		"@codemirror/basic-setup": "^0.20.0",
-		"@codemirror/commands": "^0.20.0",
-		"@codemirror/language": "^0.20.2",
-		"@codemirror/state": "^0.20.0",
+		"@codemirror/commands": "^6.1.2",
+		"@codemirror/language": "^6.3.0",
+		"@codemirror/lint": "^6.0.0",
+		"@codemirror/state": "^6.1.2",
 		"@codemirror/text": "^0.19.5",
-		"@codemirror/view": "^0.20.7",
-		"@lezer/common": "^0.16.0",
+		"@codemirror/view": "^6.4.1",
+		"@lezer/common": "^1.0.1",
 		"@types/react": "^18.0.9",
 		"@types/react-dom": "^18.0.5",
+		"codemirror": "^6.0.1",
+		"codemirror-lang-circom": "^0.0.6",
 		"react": "^18.1.0",
 		"react-dom": "^18.1.0"
 	}

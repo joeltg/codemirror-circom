@@ -31,12 +31,11 @@ section {
 	border: outset;
 }
 
-pre.ast {
+.ast {
 	margin: 0;
 	padding: 4px;
 }
 
-main section .editor .cm-editor .cm-scroller {
-	font-family: inherit;
-	font-size: 14px;
+.ast code {
+	display: block;
 }

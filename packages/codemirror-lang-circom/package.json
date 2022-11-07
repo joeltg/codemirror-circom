@@ -27,10 +27,10 @@
 	},
 	"homepage": "https://github.com/joeltg/codemirror-lang-circom#readme",
 	"dependencies": {
-		"@codemirror/language": "^0.20.2",
-		"@codemirror/lint": "^0.20.3",
-		"@codemirror/view": "^0.20.7",
-		"@lezer/common": "^0.16.0",
+		"@codemirror/language": "^6.3.0",
+		"@codemirror/lint": "^6.0.0",
+		"@codemirror/view": "^6.4.1",
+		"@lezer/common": "^1.0.1",
 		"lezer-circom": "0.0.6"
 	},
 	"devDependencies": {

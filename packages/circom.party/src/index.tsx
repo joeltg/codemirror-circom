@@ -3,18 +3,18 @@ import { createRoot } from "react-dom/client"
 
 import type { EditorState } from "@codemirror/state"
 import type { TreeCursor } from "@lezer/common"
-import { syntaxHighlighting, syntaxTree } from "@codemirror/language"
+import { syntaxTree } from "@codemirror/language"
+// import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language"
 
+import { basicSetup } from "codemirror"
 import { keymap } from "@codemirror/view"
 import { defaultKeymap } from "@codemirror/commands"
-import { basicSetup } from "@codemirror/basic-setup"
 import { indentUnit } from "@codemirror/language"
 
 import { circomLanguage } from "codemirror-lang-circom"
 
 import { Editor } from "./editor.js"
 import { initialCircomValue } from "./initialValue.js"
-import { defaultHighlightStyle } from "@codemirror/language"
 
 function scan(cursor: TreeCursor, lines: string[], depth = 0) {
 	lines.push(`${"  ".repeat(depth)}- ${cursor.name}`)
@@ -29,7 +29,7 @@ function scan(cursor: TreeCursor, lines: string[], depth = 0) {
 const circomExensions = [
 	indentUnit.of("    "),
 	basicSetup,
-	syntaxHighlighting(defaultHighlightStyle),
+	// syntaxHighlighting(defaultHighlightStyle),
 	circomLanguage,
 	keymap.of(defaultKeymap),
 ]
@@ -55,7 +55,11 @@ function Index({}) {
 				/>
 			</section>
 			<section>
-				<pre className="ast">{ast}</pre>
+				<pre className="ast">
+					{ast.map((line) => (
+						<code>{line}</code>
+					))}
+				</pre>
 			</section>
 		</>
 	)
