@@ -5,6 +5,6 @@
 	"workspaces": [
 		"packages/lezer-circom",
 		"packages/codemirror-lang-circom",
-		"packages/circom-dot-party"
+		"packages/circom.party"
 	]
 }
